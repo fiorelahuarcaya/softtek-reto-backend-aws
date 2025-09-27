@@ -1,0 +1,105 @@
+service: sofftek-reto-backend
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: ${param:runtime, 'nodejs20.x'}
+  region: us-east-2
+  httpApi:
+    cors: true
+  environment:
+    CACHE_TABLE: ${self:service}-${sls:stage}-cache
+    HISTORY_TABLE: ${self:service}-${sls:stage}-history
+    STORAGE_TABLE: ${self:service}-${sls:stage}-storage
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:Query
+        - dynamodb:UpdateItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:DeleteItem
+      Resource:
+        - !GetAtt CacheTable.Arn
+        - !GetAtt HistoryTable.Arn
+        - !GetAtt StorageTable.Arn
+
+functions:
+  fusionados:
+    handler: src/handlers/fusionados.handler
+    events:
+      - httpApi:
+          path: /fusionados
+          method: get
+
+  almacenar:
+    handler: src/handlers/almacenar.handler
+    events:
+      - httpApi:
+          path: /almacenar
+          method: post
+
+  historial:
+    handler: src/handlers/historial.handler
+    events:
+      - httpApi:
+          path: /historial
+          method: get
+
+resources:
+  Resources:
+    CacheTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CACHE_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+
+    HistoryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.HISTORY_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+
+    StorageTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.STORAGE_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+
+custom:
+  esbuild:
+    bundle: true
+    minify: true
+    sourcemap: true
+    target: node20
+    platform: node

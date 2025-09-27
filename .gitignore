@@ -1,0 +1,25 @@
+# Node / TypeScript
+node_modules/
+dist/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+*.log
+
+# Serverless / builds
+.serverless/
+.esbuild/
+
+# Entornos y credenciales (¡nunca subir!)
+.env
+.env.*
+.aws-creds.env
+
+# DynamoDB local
+.dynamodb/
+
+# SO/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
