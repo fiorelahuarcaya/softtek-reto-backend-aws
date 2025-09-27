@@ -50,6 +50,19 @@ functions:
       - httpApi:
           path: /historial
           method: get
+  openapi:
+    handler: src/handlers/docs.openapi
+    events:
+      - httpApi:
+          path: /openapi.json
+          method: get
+
+  docs:
+    handler: src/handlers/docs.ui
+    events:
+      - httpApi:
+          path: /docs
+          method: get
 
 resources:
   Resources:

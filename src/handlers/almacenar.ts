@@ -7,7 +7,6 @@ const BodySchema = z.object({
   name: z.string().min(1),
   email: z.string().email().optional(),
   notes: z.string().max(2000).optional(),
-  // agrega los campos reales que te pidan...
 });
 
 export const handler = async (event: any) => {
