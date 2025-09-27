@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, Tables } from "../core/db";
 
@@ -27,7 +27,7 @@ export const handler = async (event: any) => {
       };
     }
 
-    const id = uuidv4();
+    const id = randomUUID();
     const now = new Date().toISOString();
 
     await ddb.send(

@@ -1,6 +1,6 @@
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, Tables } from "../core/db";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 import { fetchSWPeople, fetchSWPlanets } from "../clients/swapi";
 import { fetchWikiSummary } from "../clients/wikipedia";
 import { getCachedOrFetch } from "../core/cache";
@@ -40,7 +40,7 @@ export const handler = async (event: any) => {
   );
 
   try {
-    const sk = `${new Date().toISOString()}#${uuidv4()}`;
+    const sk = `${new Date().toISOString()}#${randomUUID()}`;
     await ddb.send(
       new PutCommand({
         TableName: Tables.history,

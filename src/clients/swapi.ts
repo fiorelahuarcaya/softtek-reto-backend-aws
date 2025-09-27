@@ -1,4 +1,3 @@
-import { request } from "undici";
 import type {
   SWAPIListResponse,
   SWPerson,
@@ -6,15 +5,14 @@ import type {
 } from "../models/fusion.types";
 
 async function getJson<T>(url: string): Promise<T> {
-  const { body, statusCode } = await request(url, {
-    method: "GET",
+  const res = await fetch(url, {
     headers: {
       accept: "application/json",
       "user-agent": "sofftek-reto/1.0 (contacto@example.com)",
     },
   });
-  if (statusCode >= 400) throw new Error(`SWAPI ${statusCode} for ${url}`);
-  return (await body.json()) as T;
+  if (!res.ok) throw new Error(`SWAPI ${res.status} for ${url}`);
+  return (await res.json()) as T;
 }
 
 export async function fetchSWPeople(q: string): Promise<SWPerson | null> {

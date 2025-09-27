@@ -4,8 +4,6 @@
     "lib": ["ES2022"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-
-    "rootDir": "./src",
     "outDir": "./dist",
 
     "strict": true,
@@ -14,7 +12,9 @@
     "sourceMap": true,
 
     "skipLibCheck": true,
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "isolatedModules": true,
+    "types": ["node", "jest"]
   },
   "include": ["src/**/*.ts", "tests/*.ts"],
   "exclude": ["node_modules", "dist"]

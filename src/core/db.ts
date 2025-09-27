@@ -5,7 +5,6 @@ const isOffline =
   process.env.IS_OFFLINE === "true" || process.env.IS_OFFLINE === "1";
 
 const baseConfig: any = {};
-// Si quieres probar DDB local, exporta DDB_ENDPOINT y descomenta:
 // if (isOffline && process.env.DDB_ENDPOINT) {
 //   baseConfig.endpoint = process.env.DDB_ENDPOINT;
 //   baseConfig.credentials = { accessKeyId: "local", secretAccessKey: "local" };
