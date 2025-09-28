@@ -16,6 +16,10 @@ provider:
     CACHE_TABLE: ${self:service}-${sls:stage}-cache
     HISTORY_TABLE: ${self:service}-${sls:stage}-history
     STORAGE_TABLE: ${self:service}-${sls:stage}-storage
+    JWT_SECRET: ${env:JWT_SECRET, 'dev-change-me-please-32bytes'}
+    AUTH_USERNAME: ${env:AUTH_USERNAME, 'admin'}
+    AUTH_PASSWORD: ${env:AUTH_PASSWORD, 'S0fftek!'}
+
   logs:
     httpApi: true # access logs para HTTP API
   logRetentionInDays: 7
@@ -37,6 +41,13 @@ provider:
         - !GetAtt StorageTable.Arn
 
 functions:
+  login:
+    handler: src/handlers/auth.login
+    events:
+      - httpApi:
+          path: /auth/login
+          method: post
+
   fusionados:
     handler: src/handlers/fusionados.handler
     events:

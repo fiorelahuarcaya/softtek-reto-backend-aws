@@ -1,8 +1,14 @@
 import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, Tables } from "../core/db";
 import { createLogger } from "../core/logger";
+import { requireAuth } from "../middlewares/requireAuth";
 
 export const handler = async (event: any, context: any) => {
+  const auth = await requireAuth(event);
+  if (!auth.ok) {
+    return { statusCode: auth.statusCode, body: JSON.stringify(auth.body) };
+  }
+
   const log = createLogger({
     component: "historial",
     reqId: context?.awsRequestId,

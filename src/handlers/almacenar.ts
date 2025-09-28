@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, Tables } from "../core/db";
 import { createLogger } from "../core/logger";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const BodySchema = z.object({
   name: z.string().min(1),
@@ -11,6 +12,11 @@ const BodySchema = z.object({
 });
 
 export const handler = async (event: any, context: any) => {
+  const auth = await requireAuth(event);
+  if (!auth.ok) {
+    return { statusCode: auth.statusCode, body: JSON.stringify(auth.body) };
+  }
+
   const log = createLogger({
     component: "fusionados",
     reqId: context?.awsRequestId,
