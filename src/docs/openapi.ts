@@ -6,60 +6,67 @@ export function buildOpenApi(basePath: string = "/"): OpenAPIObject {
   return {
     openapi: "3.0.3",
     info: {
-      title: "Sofftek Reto Backend API",
+      title: "Reto Backend Node.js/AWS",
       version: "1.0.0",
       description:
-        "API RESTful del reto (Lambda + API Gateway). Fusiona SWAPI + Wikipedia, almacena items y lista historial.",
+        "API RESTful desplegada en AWS Lambda (HTTP API). Incluye autenticación JWT, endpoints protegidos y endpoint público con rate-limit y caché.",
     },
-    servers: [{ url: basePath }],
-    tags: [
-      { name: "fusion", description: "Combina SWAPI y Wikipedia" },
-      { name: "storage", description: "Almacenamiento de datos" },
-      { name: "history", description: "Historial de consultas" },
+    servers: [
+      {
+        url: "https://{apiId}.execute-api.{region}.amazonaws.com",
+        variables: {
+          apiId: { default: "8q6zu647xl" },
+          region: { default: "us-east-2" },
+        },
+      },
+      { url: "http://localhost:3000" },
     ],
     paths: {
-      "/fusionados": {
-        get: {
-          tags: ["fusion"],
-          summary: "Fusiona datos de SWAPI y Wikipedia",
-          parameters: [
-            {
-              name: "resource",
-              in: "query",
-              required: false,
-              schema: { type: "string", enum: ["people", "planets"] },
-              description: "Tipo de recurso (por defecto people).",
+      "/auth/login": {
+        post: {
+          summary: "Login y obtención de JWT",
+          operationId: "login",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/LoginRequest" },
+                examples: {
+                  ok: { value: { username: "demo", password: "secret" } },
+                },
+              },
             },
-            {
-              name: "q",
-              in: "query",
-              required: true,
-              schema: { type: "string" },
-              description: "Texto de búsqueda (nombre).",
-            },
-          ],
+          },
           responses: {
             "200": {
-              description: "Resultado de la fusión",
+              description: "Autenticación exitosa",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/FusionResult" },
+                  schema: { $ref: "#/components/schemas/LoginResponse" },
                 },
               },
             },
             "400": {
-              description: "Falta parámetro q",
+              description: "Body inválido",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
                 },
               },
             },
-            "404": {
-              description: "No se encontró el recurso en SWAPI",
+            "401": {
+              description: "Credenciales inválidas",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/FusionResult" },
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+            "500": {
+              description: "Fallo interno de login",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
                 },
               },
             },
@@ -68,30 +75,48 @@ export function buildOpenApi(basePath: string = "/"): OpenAPIObject {
       },
       "/almacenar": {
         post: {
-          tags: ["storage"],
-          summary: "Valida y almacena un ítem",
+          summary: "Almacenar item personalizado",
+          operationId: "storeItem",
+          security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/StorageInput" },
+                schema: { $ref: "#/components/schemas/StoreItemRequest" },
+                examples: {
+                  ok: {
+                    value: {
+                      name: "Leia Organa",
+                      email: "leia@rebellion.org",
+                      notes: "Priority contact",
+                    },
+                  },
+                },
               },
             },
           },
           responses: {
             "201": {
-              description: "Ítem creado",
+              description: "Creado",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/StorageItem" },
+                  schema: { $ref: "#/components/schemas/StoreItemResponse" },
                 },
               },
             },
             "400": {
-              description: "Body inválido",
+              description: "Body inválido (Zod)",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
+                  schema: { $ref: "#/components/schemas/ErrorWithIssues" },
+                },
+              },
+            },
+            "401": {
+              description: "Token faltante o inválido",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
                 },
               },
             },
@@ -99,7 +124,7 @@ export function buildOpenApi(basePath: string = "/"): OpenAPIObject {
               description: "Error al guardar",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
                 },
               },
             },
@@ -108,12 +133,14 @@ export function buildOpenApi(basePath: string = "/"): OpenAPIObject {
       },
       "/historial": {
         get: {
-          tags: ["history"],
-          summary: "Lista entradas del historial",
+          summary: "Listar historial de consultas a /fusionados",
+          operationId: "getHistory",
+          security: [{ bearerAuth: [] }],
           parameters: [
             {
               name: "limit",
               in: "query",
+              description: "Máximo de ítems (1-100). Default 10.",
               schema: {
                 type: "integer",
                 minimum: 1,
@@ -124,25 +151,114 @@ export function buildOpenApi(basePath: string = "/"): OpenAPIObject {
             {
               name: "cursor",
               in: "query",
+              description:
+                "Cursor (LastEvaluatedKey.sk) para paginar hacia adelante",
               schema: { type: "string" },
-              description: "sk del último ítem (paginación)",
             },
           ],
           responses: {
             "200": {
-              description: "Página de historial",
+              description: "OK",
               content: {
                 "application/json": {
-                  schema: {
-                    type: "object",
-                    properties: {
-                      items: {
-                        type: "array",
-                        items: { $ref: "#/components/schemas/HistoryItem" },
-                      },
-                      nextCursor: { type: "string", nullable: true },
-                    },
-                  },
+                  schema: { $ref: "#/components/schemas/HistoryResponse" },
+                },
+              },
+            },
+            "401": {
+              description: "Token faltante o inválido",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+            "500": {
+              description: "Error en la consulta de historial",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/fusionados": {
+        get: {
+          summary: "Fusiona datos de SWAPI con Wikipedia",
+          operationId: "getFusion",
+          parameters: [
+            {
+              name: "resource",
+              in: "query",
+              description: "Recurso base a consultar en SWAPI",
+              schema: {
+                $ref: "#/components/schemas/FusionResource",
+                default: "people",
+              },
+            },
+            {
+              name: "q",
+              in: "query",
+              required: true,
+              description: "Término de búsqueda (nombre de persona o planeta)",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Encontrado (con o sin wiki)",
+              headers: {
+                "X-Cache": {
+                  schema: { type: "string", enum: ["Hit", "Miss"] },
+                  description: "Resultado servido desde caché interna o no",
+                },
+                "X-Cache-Source": {
+                  schema: { type: "string" },
+                  description: "Detalle de la fuente de caché",
+                },
+              },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/FusionResult" },
+                },
+              },
+            },
+            "404": {
+              description: "No se encontró el recurso base en SWAPI",
+              headers: {
+                "X-Cache": {
+                  schema: { type: "string", enum: ["Hit", "Miss"] },
+                },
+                "X-Cache-Source": { schema: { type: "string" } },
+              },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/FusionResult" },
+                },
+              },
+            },
+            "400": {
+              description: "Parámetro q faltante",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+            "429": {
+              description: "Rate limit excedido",
+              headers: {
+                "Retry-After": {
+                  schema: { type: "integer" },
+                  description:
+                    "Segundos a esperar antes de reintentar (si tu middleware lo incluye)",
+                },
+              },
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
                 },
               },
             },
@@ -150,7 +266,7 @@ export function buildOpenApi(basePath: string = "/"): OpenAPIObject {
               description: "Error interno",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/Error" },
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
                 },
               },
             },
@@ -159,62 +275,104 @@ export function buildOpenApi(basePath: string = "/"): OpenAPIObject {
       },
     },
     components: {
+      securitySchemes: {
+        bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+      },
       schemas: {
-        Error: {
+        ErrorResponse: {
           type: "object",
           properties: {
             message: { type: "string" },
             error: { type: "string" },
           },
+          additionalProperties: false,
+        },
+        ErrorWithIssues: {
+          type: "object",
+          properties: {
+            message: { type: "string" },
+            issues: { type: "object", description: "Zod error format()" },
+          },
+          additionalProperties: true,
+        },
+        LoginRequest: {
+          type: "object",
+          required: ["username", "password"],
+          properties: {
+            username: { type: "string" },
+            password: { type: "string", format: "password" },
+          },
+        },
+        LoginResponse: {
+          type: "object",
+          properties: {
+            access_token: { type: "string" },
+            token_type: { type: "string", example: "Bearer" },
+            expires_in: { type: "integer", example: 7200 },
+          },
+          required: ["access_token", "token_type", "expires_in"],
+        },
+        StoreItemRequest: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            name: { type: "string", minLength: 1 },
+            email: { type: "string", format: "email" },
+            notes: { type: "string", maxLength: 2000 },
+          },
+          additionalProperties: false,
+        },
+        StoreItemResponse: {
+          allOf: [
+            { $ref: "#/components/schemas/StoreItemRequest" },
+            {
+              type: "object",
+              properties: {
+                id: { type: "string", format: "uuid" },
+                createdAt: { type: "string", format: "date-time" },
+              },
+              required: ["id", "createdAt"],
+            },
+          ],
+        },
+        FusionResource: {
+          type: "string",
+          enum: ["people", "planets"],
         },
         WikiSummary: {
           type: "object",
+          description:
+            "Resumen de Wikipedia (estructura simplificada; puede contener más campos)",
           properties: {
             title: { type: "string" },
             extract: { type: "string" },
-            url: { type: "string", nullable: true },
-            thumbnail: { type: "string", nullable: true },
+            lang: { type: "string" },
           },
+          additionalProperties: true,
         },
         SWPerson: {
           type: "object",
+          description: "Persona de SWAPI (parcial)",
           properties: {
             name: { type: "string" },
             height: { type: "string" },
             mass: { type: "string" },
-            hair_color: { type: "string" },
-            skin_color: { type: "string" },
-            eye_color: { type: "string" },
-            birth_year: { type: "string" },
             gender: { type: "string" },
+            birth_year: { type: "string" },
             homeworld: { type: "string" },
-            films: { type: "array", items: { type: "string" } },
-            species: { type: "array", items: { type: "string" } },
-            vehicles: { type: "array", items: { type: "string" } },
-            starships: { type: "array", items: { type: "string" } },
-            created: { type: "string" },
-            edited: { type: "string" },
-            url: { type: "string" },
           },
+          additionalProperties: true,
         },
         SWPlanet: {
           type: "object",
+          description: "Planeta de SWAPI (parcial)",
           properties: {
             name: { type: "string" },
-            rotation_period: { type: "string" },
-            orbital_period: { type: "string" },
-            diameter: { type: "string" },
             climate: { type: "string" },
-            gravity: { type: "string" },
             terrain: { type: "string" },
-            surface_water: { type: "string" },
             population: { type: "string" },
-            residents: { type: "array", items: { type: "string" } },
-            films: { type: "array", items: { type: "string" } },
-            created: { type: "string" },
-            edited: { type: "string" },
-            url: { type: "string" },
           },
+          additionalProperties: true,
         },
         FusionResult: {
           type: "object",
@@ -226,42 +384,39 @@ export function buildOpenApi(basePath: string = "/"): OpenAPIObject {
               ],
               nullable: true,
             },
-            wiki: { $ref: "#/components/schemas/WikiSummary" },
+            wiki: { $ref: "#/components/schemas/WikiSummary", nullable: true },
             fetchedAt: { type: "string", format: "date-time" },
-          },
-        },
-        StorageInput: {
-          type: "object",
-          required: ["name"],
-          properties: {
-            name: { type: "string", minLength: 1 },
-            email: { type: "string", format: "email" },
-            notes: { type: "string", maxLength: 2000 },
-          },
-        },
-        StorageItem: {
-          allOf: [
-            { $ref: "#/components/schemas/StorageInput" },
-            {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                createdAt: { type: "string", format: "date-time" },
-              },
+            _cache: {
+              type: "string",
+              description: "Fuente de caché (p.ej. MISS/HIT)",
             },
-          ],
+          },
+          required: ["fetchedAt"],
         },
         HistoryItem: {
           type: "object",
           properties: {
-            pk: { type: "string" },
-            sk: { type: "string" },
-            resource: { type: "string" },
+            pk: { type: "string", example: "fusionados" },
+            sk: { type: "string", description: "timestamp#uuid" },
+            resource: { $ref: "#/components/schemas/FusionResource" },
             q: { type: "string" },
             hasBase: { type: "boolean" },
             hasWiki: { type: "boolean" },
-            durationMs: { type: "number" },
+            cacheSource: { type: "string" },
+            durationMs: { type: "integer" },
           },
+          additionalProperties: true,
+        },
+        HistoryResponse: {
+          type: "object",
+          properties: {
+            items: {
+              type: "array",
+              items: { $ref: "#/components/schemas/HistoryItem" },
+            },
+            nextCursor: { type: "string", nullable: true },
+          },
+          required: ["items"],
         },
       },
     },

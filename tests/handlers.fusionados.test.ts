@@ -4,7 +4,10 @@ jest.mock("../src/clients/swapi", () => ({
   fetchSWPlanets: jest.fn(async () => null),
 }));
 jest.mock("../src/clients/wikipedia", () => ({
-  fetchWikiSummary: jest.fn(async () => ({ title: "Luke Skywalker", extract: "Jedi" })),
+  fetchWikiSummary: jest.fn(async () => ({
+    title: "Luke Skywalker",
+    extract: "Jedi",
+  })),
 }));
 
 // --- Cache: mockea la versión *Meta* que usa tu handler ---
@@ -83,4 +86,3 @@ describe("GET /fusionados", () => {
     expect(res.headers?.["Content-Type"]).toContain("application/json");
   });
 });
-  
