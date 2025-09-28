@@ -12,9 +12,16 @@ provider:
   httpApi:
     cors: true
   environment:
+    LOG_LEVEL: debug
     CACHE_TABLE: ${self:service}-${sls:stage}-cache
     HISTORY_TABLE: ${self:service}-${sls:stage}-history
     STORAGE_TABLE: ${self:service}-${sls:stage}-storage
+  logs:
+    httpApi: true # access logs para HTTP API
+  logRetentionInDays: 7
+  tracing:
+    lambda: true # X-Ray para Lambda
+    apiGateway: true # X-Ray para API GW (HTTP API soporta tracing)
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -116,3 +123,6 @@ custom:
     sourcemap: true
     target: node20
     platform: node
+  logLevel:
+    dev: debug
+    prod: info

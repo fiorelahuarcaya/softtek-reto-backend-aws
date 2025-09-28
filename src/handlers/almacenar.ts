@@ -2,6 +2,7 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, Tables } from "../core/db";
+import { createLogger } from "../core/logger";
 
 const BodySchema = z.object({
   name: z.string().min(1),
@@ -9,7 +10,18 @@ const BodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-export const handler = async (event: any) => {
+export const handler = async (event: any, context: any) => {
+  const log = createLogger({
+    component: "fusionados",
+    reqId: context?.awsRequestId,
+    gwReqId: event?.requestContext?.requestId,
+    path: event?.rawPath,
+    stage: event?.requestContext?.stage,
+  });
+
+  const reqId = context.awsRequestId;
+  log.info("REQUEST_RECEIVED", { qs: event.queryStringParameters });
+
   try {
     const bodyRaw =
       typeof event.body === "string"
@@ -17,6 +29,7 @@ export const handler = async (event: any) => {
         : JSON.stringify(event.body || "{}");
     const parsed = BodySchema.safeParse(JSON.parse(bodyRaw || "{}"));
     if (!parsed.success) {
+      log.warn("STORE_INVALID_BODY", { reqId, issues: parsed.error.format() });
       return {
         statusCode: 400,
         body: JSON.stringify({
@@ -32,21 +45,17 @@ export const handler = async (event: any) => {
     await ddb.send(
       new PutCommand({
         TableName: Tables.storage,
-        Item: {
-          pk: `item#${id}`,
-          id,
-          ...parsed.data,
-          createdAt: now,
-        },
+        Item: { pk: `item#${id}`, id, ...parsed.data, createdAt: now },
       })
     );
+    log.info("STORE_SUCCESS", { reqId, id });
 
     return {
       statusCode: 201,
       body: JSON.stringify({ id, ...parsed.data, createdAt: now }),
     };
   } catch (err: any) {
-    // En offline sin credenciales, aquí podría fallar => muestra error claro
+    log.error("STORE_FAILED", { reqId, error: err?.message });
     return {
       statusCode: 500,
       body: JSON.stringify({

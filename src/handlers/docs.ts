@@ -1,6 +1,5 @@
 import { buildOpenApi } from "../docs/openapi";
 
-/** Devuelve OpenAPI JSON con el `servers[0].url` correcto según el stage */
 export const openapi = async (event: any) => {
   const stage = event?.requestContext?.stage ?? "$default";
   const basePath = stage && stage !== "$default" ? `/${stage}` : "";
@@ -12,7 +11,6 @@ export const openapi = async (event: any) => {
   };
 };
 
-/** Sirve Swagger UI usando CDN y apuntando a `openapi.json` relativo (respeta el stage) */
 export const ui = async () => {
   const html = `<!doctype html>
 <html>
