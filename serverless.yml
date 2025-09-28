@@ -19,6 +19,8 @@ provider:
     JWT_SECRET: ${env:JWT_SECRET, 'dev-change-me-please-32bytes'}
     AUTH_USERNAME: ${env:AUTH_USERNAME, 'admin'}
     AUTH_PASSWORD: ${env:AUTH_PASSWORD, 'S0fftek!'}
+    RL_FUSIONADOS: ${env:RL_FUSIONADOS, '5'}
+    RL_WINDOW: ${env:RL_WINDOW, '60'}
 
   logs:
     httpApi: true # access logs para HTTP API

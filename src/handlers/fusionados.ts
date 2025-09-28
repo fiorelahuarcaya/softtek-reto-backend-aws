@@ -6,6 +6,8 @@ import { fetchWikiSummary } from "../clients/wikipedia";
 import { getCachedOrFetch, getCachedOrFetchMeta } from "../core/cache";
 import type { SWPerson, SWPlanet, WikiSummary } from "../models/fusion.types";
 import { createLogger } from "../core/logger";
+import { withJson, jsonResponse } from "../utils/http";
+import { enforceRateLimit } from "../middlewares/rateLimit";
 
 type Resource = "people" | "planets";
 interface FusionResult {
@@ -14,7 +16,7 @@ interface FusionResult {
   fetchedAt: string;
 }
 
-export const handler = async (event: any, context: any) => {
+export const handler = withJson(async (event: any, context: any) => {
   const start = Date.now();
   const log = createLogger({
     component: "fusionados",
@@ -24,6 +26,14 @@ export const handler = async (event: any, context: any) => {
     stage: event?.requestContext?.stage,
   });
 
+  const rl = await enforceRateLimit(event, {
+    endpoint: "fusionados",
+    limit: Number(process.env.RL_FUSIONADOS ?? "20"),
+    windowSec: Number(process.env.RL_WINDOW ?? "60"),
+  });
+  if (!rl.ok)
+    return { statusCode: rl.statusCode!, body: JSON.stringify(rl.body) };
+
   const r = (event.queryStringParameters?.resource ?? "people") as Resource;
   const q = (event.queryStringParameters?.q ?? "").trim();
 
@@ -31,11 +41,9 @@ export const handler = async (event: any, context: any) => {
 
   if (!q) {
     log.warn("BAD_REQUEST_MISSING_Q");
-    return {
-      statusCode: 400,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "q is required" }),
-    };
+    return jsonResponse(400, {
+      message: "q is required",
+    });
   }
 
   const key = `cache#${r}#${q.toLowerCase()}`;
@@ -113,6 +121,6 @@ export const handler = async (event: any, context: any) => {
       body: JSON.stringify({ message: "Internal error" }),
     };
   }
-};
+});
 
 export default handler;

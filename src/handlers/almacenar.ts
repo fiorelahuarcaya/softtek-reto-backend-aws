@@ -4,6 +4,7 @@ import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, Tables } from "../core/db";
 import { createLogger } from "../core/logger";
 import { requireAuth } from "../middlewares/requireAuth";
+import { withJson, jsonResponse } from "../utils/http";
 
 const BodySchema = z.object({
   name: z.string().min(1),
@@ -11,7 +12,7 @@ const BodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-export const handler = async (event: any, context: any) => {
+export const handler = withJson(async (event: any, context: any) => {
   const auth = await requireAuth(event);
   if (!auth.ok) {
     return { statusCode: auth.statusCode, body: JSON.stringify(auth.body) };
@@ -36,13 +37,10 @@ export const handler = async (event: any, context: any) => {
     const parsed = BodySchema.safeParse(JSON.parse(bodyRaw || "{}"));
     if (!parsed.success) {
       log.warn("STORE_INVALID_BODY", { reqId, issues: parsed.error.format() });
-      return {
-        statusCode: 400,
-        body: JSON.stringify({
-          message: "Invalid body",
-          issues: parsed.error.format(),
-        }),
-      };
+      return jsonResponse(400, {
+        message: "Invalid body",
+        issues: parsed.error.format(),
+      });
     }
 
     const id = randomUUID();
@@ -56,10 +54,7 @@ export const handler = async (event: any, context: any) => {
     );
     log.info("STORE_SUCCESS", { reqId, id });
 
-    return {
-      statusCode: 201,
-      body: JSON.stringify({ id, ...parsed.data, createdAt: now }),
-    };
+    return jsonResponse(201, { id, ...parsed.data, createdAt: now });
   } catch (err: any) {
     log.error("STORE_FAILED", { reqId, error: err?.message });
     return {
@@ -70,6 +65,6 @@ export const handler = async (event: any, context: any) => {
       }),
     };
   }
-};
+});
 
 export default handler;
