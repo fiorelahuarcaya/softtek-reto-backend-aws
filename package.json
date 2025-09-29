@@ -6,8 +6,8 @@
     "dev": "cross-env IS_OFFLINE=1 LOG_LEVEL=debug serverless offline --param=runtime=nodejs18.x",
     "build": "serverless package",
     "test": "jest --passWithNoTests",
-    "deploy:dev": "cross-env AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE=dev serverless deploy --stage dev",
-    "remove:dev": "cross-env AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE=dev serverless remove --stage dev",
+    "deploy:dev": "cross-env AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE=dev serverless deploy --stage dev --aws-profile sofftek",
+    "remove:dev": "cross-env AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE=dev serverless remove --stage dev --aws-profile sofftek",
     "format": "prettier --write .",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix"
