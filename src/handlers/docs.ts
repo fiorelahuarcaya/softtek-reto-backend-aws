@@ -1,7 +1,8 @@
 import { buildOpenApi } from "../docs/openapi";
+import type { HttpHandler } from "../utils/http";
 
-export const openapi = async (event: any) => {
-  const stage = event?.requestContext?.stage ?? "$default";
+export const openapi: HttpHandler = async (event, _context) => {
+  const stage = event.requestContext.stage ?? "$default";
   const basePath = stage && stage !== "$default" ? `/${stage}` : "";
   const spec = buildOpenApi(basePath);
   return {
@@ -11,7 +12,7 @@ export const openapi = async (event: any) => {
   };
 };
 
-export const ui = async () => {
+export const ui: HttpHandler = async (_event, _context) => {
   const html = `<!doctype html>
 <html>
 <head>

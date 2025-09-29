@@ -1,3 +1,4 @@
+import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, Tables } from "../core/db";
 
@@ -8,12 +9,23 @@ export type RateLimitCfg = {
   key?: string;
 };
 
-export async function enforceRateLimit(event: any, cfg: RateLimitCfg) {
+export type RateLimitOk = { ok: true };
+export type RateLimitHit = {
+  ok: false;
+  statusCode: number;
+  body: { message: string };
+};
+export type RateLimitResult = RateLimitOk | RateLimitHit;
+
+export async function enforceRateLimit(
+  event: APIGatewayProxyEventV2,
+  cfg: RateLimitCfg
+): Promise<RateLimitResult> {
   const windowSec = cfg.windowSec ?? 60;
   const nowSec = Math.floor(Date.now() / 1000);
   const windowStart = nowSec - (nowSec % windowSec);
 
-  const ip = event?.requestContext?.http?.sourceIp || "unknown";
+  const ip = event.requestContext.http?.sourceIp || "unknown";
   const clientKey = cfg.key || ip;
 
   const pk = `ratelimit#${cfg.endpoint}#${clientKey}#${windowStart}`;

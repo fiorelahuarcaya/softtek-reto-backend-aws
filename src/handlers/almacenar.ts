@@ -5,6 +5,7 @@ import { ddb, Tables } from "../core/db";
 import { createLogger } from "../core/logger";
 import { requireAuth } from "../middlewares/requireAuth";
 import { withJson, jsonResponse } from "../utils/http";
+import type { HttpHandler } from "../utils/http";
 
 const BodySchema = z.object({
   name: z.string().min(1),
@@ -12,10 +13,10 @@ const BodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-export const handler = withJson(async (event: any, context: any) => {
+export const handler: HttpHandler = withJson(async (event, context) => {
   const auth = await requireAuth(event);
   if (!auth.ok) {
-    return { statusCode: auth.statusCode, body: JSON.stringify(auth.body) };
+    return { statusCode: auth.statusCode, body: auth.body };
   }
 
   const log = createLogger({
@@ -59,10 +60,10 @@ export const handler = withJson(async (event: any, context: any) => {
     log.error("STORE_FAILED", { reqId, error: err?.message });
     return {
       statusCode: 500,
-      body: JSON.stringify({
+      body: {
         message: "Failed to store item",
         error: err?.message,
-      }),
+      },
     };
   }
 });

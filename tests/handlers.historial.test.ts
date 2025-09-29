@@ -29,9 +29,10 @@ it("200 devuelve items y nextCursor", async () => {
     queryStringParameters: { limit: "1" },
   });
 
-  const res = await handler(event as any, mockContext());
+  const res = await handler(event, mockContext());
   expect(res.statusCode).toBe(200);
-  const json = JSON.parse(res.body);
+  expect(res.body).toBeDefined();
+  const json = JSON.parse(res.body!);
   expect(json.items.length).toBe(1);
   expect(json.nextCursor).toBe("cursor-1");
   expect((ddb.send as any).mock.calls.length).toBe(1);

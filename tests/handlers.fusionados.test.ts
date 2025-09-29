@@ -29,10 +29,6 @@ jest.mock("../src/core/db", () => ({
   Tables: { history: "history-dev", cache: "cache-dev" },
 }));
 
-// jest.mock("../src/core/tracing", () => ({
-//   withSubsegment: async (_: string, fn: any) => await fn(),
-// }));
-
 import { handler } from "../src/handlers/fusionados";
 import { httpEventV2, mockContext } from "./__utils__/lambda";
 
@@ -43,18 +39,15 @@ describe("GET /fusionados", () => {
       queryStringParameters: { q: "Luke", resource: "people" },
     });
 
-    const res = await handler(event as any, mockContext());
-    // console.log(res.statusCode, res.body); // útil si vuelve a fallar
+    const res = await handler(event, mockContext());
 
     expect(res.statusCode).toBe(200);
     expect(res.headers?.["Content-Type"]).toContain("application/json");
+    expect(res.body).toBeDefined();
 
-    const body = JSON.parse(res.body);
+    const body = JSON.parse(res.body!);
     expect(body.base?.name).toBe("Luke Skywalker");
     expect(body.wiki?.title).toBe("Luke Skywalker");
-    // y puedes verificar que guardó historial si quieres:
-    // const { ddb } = require("../src/core/db");
-    // expect((ddb.send as any).mock.calls.length).toBeGreaterThan(0);
   });
 
   it("400 si falta q", async () => {
@@ -63,7 +56,7 @@ describe("GET /fusionados", () => {
       queryStringParameters: {},
     });
 
-    const res = await handler(event as any, mockContext());
+    const res = await handler(event, mockContext());
     expect(res.statusCode).toBe(400);
     expect(res.headers?.["Content-Type"]).toContain("application/json");
   });
@@ -81,7 +74,7 @@ describe("GET /fusionados", () => {
       queryStringParameters: { q: "Luke", resource: "people" },
     });
 
-    const res = await handler(event as any, mockContext());
+    const res = await handler(event, mockContext());
     expect(res.statusCode).toBe(429);
     expect(res.headers?.["Content-Type"]).toContain("application/json");
   });

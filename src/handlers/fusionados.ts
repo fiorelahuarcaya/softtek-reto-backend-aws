@@ -3,10 +3,11 @@ import { ddb, Tables } from "../core/db";
 import { randomUUID } from "node:crypto";
 import { fetchSWPeople, fetchSWPlanets } from "../clients/swapi";
 import { fetchWikiSummary } from "../clients/wikipedia";
-import { getCachedOrFetch, getCachedOrFetchMeta } from "../core/cache";
+import { getCachedOrFetchMeta } from "../core/cache";
 import type { SWPerson, SWPlanet, WikiSummary } from "../models/fusion.types";
 import { createLogger } from "../core/logger";
 import { withJson, jsonResponse } from "../utils/http";
+import type { HttpHandler } from "../utils/http";
 import { enforceRateLimit } from "../middlewares/rateLimit";
 
 type Resource = "people" | "planets";
@@ -16,7 +17,7 @@ interface FusionResult {
   fetchedAt: string;
 }
 
-export const handler = withJson(async (event: any, context: any) => {
+export const handler: HttpHandler = withJson(async (event, context) => {
   const start = Date.now();
   const log = createLogger({
     component: "fusionados",
@@ -31,8 +32,7 @@ export const handler = withJson(async (event: any, context: any) => {
     limit: Number(process.env.RL_FUSIONADOS ?? "20"),
     windowSec: Number(process.env.RL_WINDOW ?? "60"),
   });
-  if (!rl.ok)
-    return { statusCode: rl.statusCode!, body: JSON.stringify(rl.body) };
+  if (!rl.ok) return { statusCode: rl.statusCode!, body: rl.body };
 
   const r = (event.queryStringParameters?.resource ?? "people") as Resource;
   const q = (event.queryStringParameters?.q ?? "").trim();
@@ -111,14 +111,14 @@ export const handler = withJson(async (event: any, context: any) => {
         "X-Cache": source === "MISS" ? "Miss" : "Hit",
         "X-Cache-Source": source,
       },
-      body: JSON.stringify({ ...data, _cache: source }),
+      body: { ...data, _cache: source },
     };
   } catch (err: any) {
     log.error("UNHANDLED_ERROR", { error: err?.message, stack: err?.stack });
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Internal error" }),
+      body: { message: "Internal error" },
     };
   }
 });

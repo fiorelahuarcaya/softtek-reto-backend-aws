@@ -1,17 +1,15 @@
 import { z } from "zod";
 import { createLogger } from "../core/logger";
 import { isValidLogin, signJwt } from "../core/auth";
+import type { HttpHandler } from "../utils/http";
 
 const Body = z.object({ username: z.string(), password: z.string() });
 
-export const login = async (event: any) => {
+export const login: HttpHandler = async (event, _context) => {
   const log = createLogger({ component: "auth.login" });
   try {
-    const body =
-      typeof event.body === "string"
-        ? JSON.parse(event.body || "{}")
-        : event.body || {};
-    const parsed = Body.safeParse(body);
+    const payload = event.body ? JSON.parse(event.body) : {};
+    const parsed = Body.safeParse(payload);
     if (!parsed.success) {
       return {
         statusCode: 400,

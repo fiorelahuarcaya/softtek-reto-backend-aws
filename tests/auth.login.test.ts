@@ -1,4 +1,5 @@
 import { login } from "../src/handlers/auth";
+import { httpEventV2, mockContext } from "./__utils__/lambda";
 
 jest.mock("jose", () => {
   class SignJWT {
@@ -43,24 +44,28 @@ describe("POST /auth/login", () => {
   });
 
   it("200 y devuelve access_token con credenciales válidas", async () => {
-    const res = await login({
+    const event = httpEventV2({
       body: JSON.stringify({ username: "admin", password: "devpass" }),
     });
+    const res = await login(event, mockContext());
     expect(res.statusCode).toBe(200);
-    const json = JSON.parse(res.body);
+    expect(res.body).toBeDefined();
+    const json = JSON.parse(res.body!);
     expect(json).toHaveProperty("access_token");
     expect(json).toHaveProperty("token_type", "Bearer");
   });
 
   it("401 con credenciales inválidas", async () => {
-    const res = await login({
+    const event = httpEventV2({
       body: JSON.stringify({ username: "admin", password: "bad" }),
     });
+    const res = await login(event, mockContext());
     expect(res.statusCode).toBe(401);
   });
 
   it("400 con body inválido", async () => {
-    const res = await login({ body: JSON.stringify({}) });
+    const event = httpEventV2({ body: JSON.stringify({}) });
+    const res = await login(event, mockContext());
     expect(res.statusCode).toBe(400);
   });
 });
